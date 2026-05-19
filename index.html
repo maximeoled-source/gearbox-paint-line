@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>減速機外殼噴塗線規劃模擬</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f6f8;
+      --panel: #ffffff;
+      --ink: #17202a;
+      --muted: #657487;
+      --line: #d7dee8;
+      --rail: #2c3643;
+      --feed: #2f6fc8;
+      --spray: #2e9d78;
+      --oven: #d98b21;
+      --out: #6f5bb8;
+      --warn: #c84e47;
+      --shadow: 0 12px 30px rgba(22, 31, 44, 0.09);
+      font-family: "Segoe UI", "Noto Sans TC", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    button,
+    input { font: inherit; }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      background: #111820;
+      color: #f8fafc;
+      padding: 22px;
+      overflow-y: auto;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    main {
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: #233244;
+      border-radius: 8px;
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      color: #aab6c5;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .control-group {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 18px;
+      margin-top: 18px;
+    }
+
+    .group-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #d9e2ee;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: 1fr 88px;
+      gap: 10px;
+      align-items: center;
+      margin: 11px 0;
+    }
+
+    .field label {
+      color: #c8d2df;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .field input {
+      width: 100%;
+      border: 1px solid #3e4c5d;
+      background: #192433;
+      color: #ffffff;
+      border-radius: 7px;
+      padding: 8px 9px;
+      text-align: right;
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: #75a8ff;
+      box-shadow: 0 0 0 3px rgba(89, 150, 245, 0.18);
+    }
+
+    .hint {
+      margin-top: 14px;
+      color: #9eabb9;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .reset-btn {
+      width: 100%;
+      margin-top: 16px;
+      border: 1px solid #465469;
+      border-radius: 7px;
+      background: #263345;
+      color: #e4edf7;
+      min-height: 40px;
+      cursor: pointer;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .title-block p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      max-width: 820px;
+      line-height: 1.55;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--spray);
+      box-shadow: 0 0 0 4px rgba(46, 157, 120, 0.16);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      min-height: 92px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 25px;
+      letter-spacing: 0;
+    }
+
+    .metric small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .canvas-shell {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .canvas-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend i {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 5px;
+      vertical-align: -1px;
+    }
+
+    .viewport {
+      position: relative;
+      min-height: 560px;
+      height: min(68vh, 700px);
+      background:
+        linear-gradient(rgba(34, 49, 68, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 49, 68, 0.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+      overflow: hidden;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .zone {
+      stroke: rgba(23, 32, 42, 0.22);
+      stroke-width: 1.2;
+      rx: 8;
+    }
+
+    .zone-feed { fill: #eaf2ff; }
+    .zone-spray { fill: #e8f6ef; }
+    .zone-oven { fill: #fff1dd; }
+    .zone-out { fill: #f0ecfb; }
+    .zone-service { fill: rgba(91, 105, 122, 0.08); stroke: rgba(91, 105, 122, 0.25); }
+
+    .station-label {
+      font-size: 14px;
+      font-weight: 800;
+      fill: #17202a;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.96);
+      stroke-width: 4px;
+      stroke-linejoin: round;
+    }
+
+    .station-sub {
+      font-size: 11px;
+      fill: #526173;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.96);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    .rail {
+      fill: none;
+      stroke: var(--rail);
+      stroke-width: 13;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .rail-center {
+      fill: none;
+      stroke: #f5f7fa;
+      stroke-width: 2;
+      stroke-dasharray: 8 10;
+      opacity: 0.95;
+    }
+
+    .flow {
+      fill: none;
+      stroke: #2f6fc8;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      marker-end: url(#flowArrow);
+      opacity: 0.74;
+    }
+
+    .hanger-line {
+      stroke: #566274;
+      stroke-width: 1.8;
+    }
+
+    .part {
+      fill: #98a2af;
+      stroke: #414a56;
+      stroke-width: 1.3;
+    }
+
+    .part-face {
+      fill: #c0c7d0;
+      stroke: #596372;
+      stroke-width: 0.9;
+    }
+
+    .process-icon {
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.5;
+    }
+
+    .dimension {
+      stroke: #5f6f82;
+      stroke-width: 1.2;
+      marker-start: url(#dimArrow);
+      marker-end: url(#dimArrow);
+    }
+
+    .dim-text {
+      fill: #364455;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .route-box {
+      fill: #ffffff;
+      stroke: #d7dee8;
+      stroke-width: 1.1;
+      rx: 7;
+    }
+
+    .route-text {
+      fill: #39485a;
+      font-size: 12px;
+      font-weight: 700;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.96);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    .footnotes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .note {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      box-shadow: var(--shadow);
+    }
+
+    .note strong {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      aside { max-height: none; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .footnotes { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 620px) {
+      main,
+      aside { padding: 16px; }
+      .topbar,
+      .canvas-head { flex-direction: column; align-items: flex-start; }
+      .metrics { grid-template-columns: 1fr; }
+      .viewport { min-height: 620px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">
+        <div class="brand-mark">PL</div>
+        <div>
+          <h1>減速機外殼噴塗線</h1>
+          <div class="sub">靜態 Layout 與產能推估</div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">輸送與產品</div>
+        <div class="field">
+          <label for="hangerPitch">吊掛間距 mm/只</label>
+          <input id="hangerPitch" type="number" min="200" step="10" value="620" />
+        </div>
+        <div class="field">
+          <label for="targetOutput">目標產量 只/小時</label>
+          <input id="targetOutput" type="number" min="1" step="1" value="120" />
+        </div>
+        <div class="field">
+          <label for="partSize">外殼邊長 mm</label>
+          <input id="partSize" type="number" min="100" step="10" value="300" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">製程時間</div>
+        <div class="field">
+          <label for="spray1">第一道噴塗 秒/只</label>
+          <input id="spray1" type="number" min="5" step="1" value="60" />
+        </div>
+        <div class="field">
+          <label for="dry1">第一次烘乾 分鐘</label>
+          <input id="dry1" type="number" min="1" step="1" value="20" />
+        </div>
+        <div class="field">
+          <label for="spray2">第二道噴塗 秒/只</label>
+          <input id="spray2" type="number" min="5" step="1" value="60" />
+        </div>
+        <div class="field">
+          <label for="dry2">第二次烘乾 分鐘</label>
+          <input id="dry2" type="number" min="1" step="1" value="20" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">Layout 規劃</div>
+        <div class="field">
+          <label for="aisle">操作/維修走道 m</label>
+          <input id="aisle" type="number" min="0.5" step="0.1" value="1.2" />
+        </div>
+        <div class="field">
+          <label for="feedBuffer">入料緩衝 只</label>
+          <input id="feedBuffer" type="number" min="1" step="1" value="8" />
+        </div>
+        <div class="field">
+          <label for="outBuffer">出料緩衝 只</label>
+          <input id="outBuffer" type="number" min="1" step="1" value="10" />
+        </div>
+        <div class="field">
+          <label for="lineGap">往返線距 m</label>
+          <input id="lineGap" type="number" min="1.5" step="0.1" value="3.2" />
+        </div>
+        <button id="resetBtn" class="reset-btn" type="button">重設預設值</button>
+        <div class="hint">示意圖採 U 型懸吊輸送線。烘乾區長度由輸送速度與烘乾時間推估；噴塗產能由每只噴塗秒數推估。</div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div class="title-block">
+          <h2>產線 Layout 靜態規劃圖</h2>
+          <p>站別、流向、入料/出料區、烘乾爐段與占地尺寸會依左側參數即時重算，適合用來做初步方案討論與客戶溝通。</p>
+        </div>
+        <div class="status-pill"><span class="dot"></span><span>靜態示意</span></div>
+      </div>
+
+      <section class="metrics" aria-label="production metrics">
+        <div class="metric"><span>輸送速度</span><strong id="speedMpm">--</strong><small>m/min</small></div>
+        <div class="metric"><span>理論節拍</span><strong id="taktSec">--</strong><small>sec/只</small></div>
+        <div class="metric"><span>建議占地</span><strong id="footprint">--</strong><small>m</small></div>
+        <div class="metric"><span>最小輸送帶總長</span><strong id="totalLength">--</strong><small>m</small></div>
+        <div class="metric"><span>線上在製品</span><strong id="wip">--</strong><small>只</small></div>
+        <div class="metric"><span>瓶頸能力</span><strong id="bottleneck">--</strong><small>只/小時</small></div>
+      </section>
+
+      <section class="canvas-shell">
+        <div class="canvas-head">
+          <strong>Layout 平面示意</strong>
+          <div class="legend">
+            <span><i style="background:#2f6fc8"></i>入料/出料</span>
+            <span><i style="background:#2e9d78"></i>噴塗</span>
+            <span><i style="background:#d98b21"></i>烘乾爐</span>
+            <span><i style="background:#2c3643"></i>懸吊輸送機</span>
+          </div>
+        </div>
+        <div class="viewport">
+          <svg id="layoutSvg" viewBox="0 0 1200 700" role="img" aria-label="減速機外殼噴塗線 layout 靜態示意"></svg>
+        </div>
+      </section>
+
+      <section class="footnotes">
+        <div class="note"><strong>入料區規劃</strong><span id="feedNote">--</span></div>
+        <div class="note"><strong>出料區規劃</strong><span id="outNote">--</span></div>
+        <div class="note"><strong>工程提醒</strong><span id="engineeringNote">--</span></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const inputs = {
+      hangerPitch: document.querySelector("#hangerPitch"),
+      targetOutput: document.querySelector("#targetOutput"),
+      partSize: document.querySelector("#partSize"),
+      spray1: document.querySelector("#spray1"),
+      dry1: document.querySelector("#dry1"),
+      spray2: document.querySelector("#spray2"),
+      dry2: document.querySelector("#dry2"),
+      aisle: document.querySelector("#aisle"),
+      feedBuffer: document.querySelector("#feedBuffer"),
+      outBuffer: document.querySelector("#outBuffer"),
+      lineGap: document.querySelector("#lineGap")
+    };
+
+    const output = {
+      speedMpm: document.querySelector("#speedMpm"),
+      taktSec: document.querySelector("#taktSec"),
+      footprint: document.querySelector("#footprint"),
+      totalLength: document.querySelector("#totalLength"),
+      wip: document.querySelector("#wip"),
+      bottleneck: document.querySelector("#bottleneck"),
+      feedNote: document.querySelector("#feedNote"),
+      outNote: document.querySelector("#outNote"),
+      engineeringNote: document.querySelector("#engineeringNote")
+    };
+
+    const svg = document.querySelector("#layoutSvg");
+    const resetBtn = document.querySelector("#resetBtn");
+
+    function num(key) {
+      return Number(inputs[key].value) || 0;
+    }
+
+    function fmt(value, digits = 1) {
+      return Number(value).toLocaleString("zh-TW", {
+        maximumFractionDigits: digits,
+        minimumFractionDigits: digits
+      });
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function calc() {
+      const pitchM = Math.max(0.1, num("hangerPitch") / 1000);
+      const targetOutput = Math.max(1, num("targetOutput"));
+      const taktSec = 3600 / targetOutput;
+      const speedMpm = pitchM * targetOutput / 60;
+      const spray1Len = Math.max(2.4, speedMpm * (num("spray1") / 60) + 1.2);
+      const dry1Len = Math.max(5, speedMpm * num("dry1"));
+      const spray2Len = Math.max(2.4, speedMpm * (num("spray2") / 60) + 1.2);
+      const dry2Len = Math.max(5, speedMpm * num("dry2"));
+      const feedLen = Math.max(3, num("feedBuffer") * pitchM + 1.5);
+      const outLen = Math.max(3, num("outBuffer") * pitchM + 1.5);
+      const turnAllowance = 5.2;
+      const processLength = feedLen + spray1Len + dry1Len + spray2Len + dry2Len + outLen + turnAllowance;
+      const bayWidth = num("lineGap") + 2 * num("aisle");
+      const footprintLength = processLength / 2 + 2.5;
+      const footprintArea = footprintLength * bayWidth;
+      const wip = Math.ceil(processLength / pitchM);
+      const spray1Cap = 3600 / Math.max(1, num("spray1"));
+      const spray2Cap = 3600 / Math.max(1, num("spray2"));
+      const conveyorCap = 60 / pitchM * speedMpm;
+      const bottleneck = Math.min(spray1Cap, spray2Cap, conveyorCap);
+
+      return {
+        pitchM, targetOutput, taktSec, speedMpm, spray1Len, dry1Len, spray2Len,
+        dry2Len, feedLen, outLen, processLength, bayWidth, footprintLength,
+        footprintArea, wip, bottleneck, spray1Cap, spray2Cap
+      };
+    }
+
+    function station(x, y, w, h, cls, title, sub, icon) {
+      return `
+        <rect class="zone ${cls}" x="${x}" y="${y}" width="${w}" height="${h}"></rect>
+        ${icon}
+        <text class="station-label" x="${x + 16}" y="${y + 28}">${title}</text>
+        <text class="station-sub" x="${x + 16}" y="${y + 49}">${sub}</text>
+      `;
+    }
+
+    function part(x, y, size) {
+      return `
+        <g transform="translate(${x}, ${y})">
+          <line class="hanger-line" x1="0" y1="-24" x2="0" y2="-2"></line>
+          <rect class="part" x="${-size / 2}" y="0" width="${size}" height="${size}" rx="4"></rect>
+          <rect class="part-face" x="${-size / 2 + 6}" y="6" width="${size - 12}" height="${size - 12}" rx="3"></rect>
+        </g>
+      `;
+    }
+
+    function sampleParts(x1, y1, x2, y2, count, size) {
+      let html = "";
+      for (let i = 0; i < count; i += 1) {
+        const t = count === 1 ? 0.5 : i / (count - 1);
+        html += part(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t + 8, size);
+      }
+      return html;
+    }
+
+    function render() {
+      const config = calc();
+      const leftX = 92;
+      const rightX = 1110;
+      const topY = 208;
+      const bottomY = 455;
+      const usableW = rightX - leftX;
+      const meterScale = usableW / Math.max(24, config.footprintLength);
+      const px = (meters) => Math.max(78, meters * meterScale);
+
+      const feedW = px(config.feedLen);
+      const spray1W = Math.max(104, px(config.spray1Len));
+      const dry1W = Math.min(px(config.dry1Len), 560);
+      const outW = px(config.outLen);
+      const spray2W = Math.max(104, px(config.spray2Len));
+      const dry2W = Math.min(px(config.dry2Len), 560);
+      const partSize = clamp(num("partSize") / 300 * 28, 20, 42);
+      const sampleCount = clamp(Math.round(usableW / 86), 8, 16);
+
+      const feedIcon = `<path class="process-icon" stroke="#2f6fc8" d="M${leftX + 26} ${topY - 92} h28 m-8 -8 8 8 -8 8"></path>`;
+      const sprayIcon1 = `<path class="process-icon" stroke="#2e9d78" d="M${leftX + feedW + 88} ${topY - 98} l-32 52 m18 -47 l-32 52 m50 -42 l-32 52"></path>`;
+      const sprayIcon2 = `<path class="process-icon" stroke="#2e9d78" d="M${rightX - spray2W + 88} ${bottomY + 92} l-32 -52 m18 47 l-32 -52 m50 42 l-32 -52"></path>`;
+      const ovenIcon1 = `<path class="process-icon" stroke="#d98b21" d="M${leftX + feedW + spray1W + 120} ${topY - 102} q18 20 0 40 q-18 20 0 40 m44 -80 q18 20 0 40 q-18 20 0 40"></path>`;
+      const ovenIcon2 = `<path class="process-icon" stroke="#d98b21" d="M${rightX - dry2W + 130} ${bottomY + 102} q18 -20 0 -40 q-18 -20 0 -40 m44 80 q18 -20 0 -40 q-18 -20 0 -40"></path>`;
+      const outIcon = `<path class="process-icon" stroke="#6f5bb8" d="M${leftX + 26} ${bottomY + 92} h28 m-20 -8 -8 8 8 8"></path>`;
+
+      svg.innerHTML = `
+        <defs>
+          <marker id="dimArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#5f6f82"></path>
+          </marker>
+          <marker id="flowArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#2f6fc8"></path>
+          </marker>
+        </defs>
+
+        <rect class="zone zone-service" x="56" y="64" width="1088" height="560"></rect>
+        <text class="dim-text" x="72" y="88">外框：設備區 + 操作/維修走道</text>
+        <text class="dim-text" x="72" y="612">走道建議 ${fmt(num("aisle"))} m，往返線中心距 ${fmt(num("lineGap"))} m</text>
+
+        <path class="rail" d="M${leftX} ${topY} L${rightX} ${topY} L${rightX} ${bottomY} L${leftX} ${bottomY} Z"></path>
+        <path class="rail-center" d="M${leftX} ${topY} L${rightX} ${topY} L${rightX} ${bottomY} L${leftX} ${bottomY} Z"></path>
+        <path class="flow" d="M${leftX + 70} ${topY - 26} L${rightX - 70} ${topY - 26}"></path>
+        <path class="flow" d="M${rightX + 24} ${topY + 40} L${rightX + 24} ${bottomY - 40}"></path>
+        <path class="flow" d="M${rightX - 70} ${bottomY + 34} L${leftX + 70} ${bottomY + 34}"></path>
+
+        ${sampleParts(leftX + 24, topY, rightX - 24, topY, sampleCount, partSize)}
+        ${sampleParts(rightX, topY + 30, rightX, bottomY - 30, 5, partSize)}
+        ${sampleParts(rightX - 24, bottomY, leftX + 24, bottomY, sampleCount, partSize)}
+        ${sampleParts(leftX, bottomY - 30, leftX, topY + 30, 5, partSize)}
+
+        ${station(70, 104, feedW, 74, "zone-feed", "入料吊掛區", `${fmt(config.feedLen)} m / ${num("feedBuffer")} 只緩衝`, feedIcon)}
+        ${station(70 + feedW + 12, 104, spray1W, 74, "zone-spray", "第一道噴塗", `${num("spray1")} 秒/只`, sprayIcon1)}
+        ${station(70 + feedW + spray1W + 24, 104, dry1W, 74, "zone-oven", "第一次烘乾", `${num("dry1")} 分鐘，估 ${fmt(config.dry1Len)} m`, ovenIcon1)}
+
+        ${station(70, 485, outW, 74, "zone-out", "出料卸掛區", `${fmt(config.outLen)} m / ${num("outBuffer")} 只緩衝`, outIcon)}
+        ${station(Math.max(260, rightX - dry2W - spray2W - 26), 485, dry2W, 74, "zone-oven", "第二次烘乾", `${num("dry2")} 分鐘，估 ${fmt(config.dry2Len)} m`, ovenIcon2)}
+        ${station(rightX - spray2W, 485, spray2W, 74, "zone-spray", "第二道噴塗", `${num("spray2")} 秒/只`, sprayIcon2)}
+
+        <rect class="route-box" x="418" y="300" width="364" height="66"></rect>
+        <text class="route-text" x="438" y="326">製程路徑：入料 → 噴塗 1 → 烘乾 1 → 噴塗 2 → 烘乾 2 → 出料</text>
+        <text class="station-sub" x="438" y="350">吊掛間距 ${num("hangerPitch")} mm；外殼 ${num("partSize")} x ${num("partSize")} x ${num("partSize")} mm</text>
+
+        <line class="dimension" x1="${leftX}" y1="656" x2="${rightX}" y2="656"></line>
+        <text class="dim-text" x="520" y="642">建議長度 ${fmt(config.footprintLength)} m</text>
+        <line class="dimension" x1="1160" y1="${topY}" x2="1160" y2="${bottomY}"></line>
+        <text class="dim-text" transform="translate(1182 378) rotate(-90)">建議寬度 ${fmt(config.bayWidth)} m</text>
+        <text class="dim-text" x="816" y="180">輸送速度 ${fmt(config.speedMpm, 2)} m/min</text>
+      `;
+
+      updateMetrics(config);
+    }
+
+    function updateMetrics(config) {
+      output.speedMpm.textContent = fmt(config.speedMpm, 2);
+      output.taktSec.textContent = fmt(config.taktSec, 1);
+      output.footprint.textContent = `${fmt(config.footprintLength)} x ${fmt(config.bayWidth)}`;
+      output.totalLength.textContent = fmt(config.processLength, 1);
+      output.wip.textContent = config.wip.toLocaleString("zh-TW");
+      output.bottleneck.textContent = Math.round(config.bottleneck).toLocaleString("zh-TW");
+
+      output.feedNote.textContent = `建議設置 ${fmt(config.feedLen)} m 入料吊掛直線段，前方保留待噴塗外殼暫存、吊掛治具確認與人工操作面，走道至少 ${fmt(num("aisle"))} m。`;
+      output.outNote.textContent = `建議設置 ${fmt(config.outLen)} m 出料卸掛直線段，烘乾後保留 ${num("outBuffer")} 只緩衝，旁側配置檢查、下件與棧板暫放區。`;
+      const capacityFlag = config.bottleneck + 0.01 < config.targetOutput
+        ? `目前瓶頸低於目標 ${Math.round(config.targetOutput)} 只/小時，需降低噴塗秒/只、增加設備配置或調整目標產量。`
+        : `目前瓶頸能力可覆蓋目標 ${Math.round(config.targetOutput)} 只/小時。`;
+      output.engineeringNote.textContent = `初估占地約 ${fmt(config.footprintArea)} m²，最小輸送帶總長約 ${fmt(config.processLength)} m，烘乾爐段合計 ${fmt(config.dry1Len + config.dry2Len)} m；${capacityFlag} 實際需再加入爐體保溫厚度、排風設備、消防間距與轉彎半徑。`;
+    }
+
+    Object.values(inputs).forEach((input) => {
+      input.addEventListener("input", render);
+    });
+
+    resetBtn.addEventListener("click", () => {
+      Object.entries({
+        hangerPitch: 620,
+        targetOutput: 120,
+        partSize: 300,
+        spray1: 60,
+        dry1: 20,
+        spray2: 60,
+        dry2: 20,
+        aisle: 1.2,
+        feedBuffer: 8,
+        outBuffer: 10,
+        lineGap: 3.2
+      }).forEach(([key, value]) => {
+        inputs[key].value = value;
+      });
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
