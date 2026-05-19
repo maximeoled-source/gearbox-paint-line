@@ -487,24 +487,6 @@
       </div>
 
       <div class="control-group">
-        <div class="group-title">Layout 規劃</div>
-        <div class="field">
-          <label for="aisle">操作/維修走道 m</label>
-          <input id="aisle" type="number" min="0.5" step="0.1" value="1.2" />
-        </div>
-        <div class="field">
-          <label for="feedBuffer">入料緩衝 只</label>
-          <input id="feedBuffer" type="number" min="1" step="1" value="8" />
-        </div>
-        <div class="field">
-          <label for="outBuffer">出料緩衝 只</label>
-          <input id="outBuffer" type="number" min="1" step="1" value="10" />
-        </div>
-        <div class="field">
-          <label for="lineGap">往返線距 m</label>
-          <input id="lineGap" type="number" min="1.5" step="0.1" value="3.2" />
-        </div>
-        <button id="resetBtn" class="reset-btn" type="button">重設預設值</button>
         <div class="hint">示意圖採 U 型懸吊輸送線。烘乾區長度由輸送速度與烘乾時間推估；噴塗產能由每只噴塗秒數推估。</div>
       </div>
     </aside>
@@ -558,11 +540,7 @@
       spray1: document.querySelector("#spray1"),
       dry1: document.querySelector("#dry1"),
       spray2: document.querySelector("#spray2"),
-      dry2: document.querySelector("#dry2"),
-      aisle: document.querySelector("#aisle"),
-      feedBuffer: document.querySelector("#feedBuffer"),
-      outBuffer: document.querySelector("#outBuffer"),
-      lineGap: document.querySelector("#lineGap")
+      dry2: document.querySelector("#dry2")
     };
 
     const output = {
@@ -578,10 +556,16 @@
     };
 
     const svg = document.querySelector("#layoutSvg");
-    const resetBtn = document.querySelector("#resetBtn");
+    const layoutDefaults = {
+      aisle: 1.2,
+      feedBuffer: 8,
+      outBuffer: 10,
+      lineGap: 3.2
+    };
 
     function num(key) {
-      return Number(inputs[key].value) || 0;
+      const value = inputs[key] ? inputs[key].value : layoutDefaults[key];
+      return Number(value) || 0;
     }
 
     function fmt(value, digits = 1) {
@@ -743,25 +727,6 @@
 
     Object.values(inputs).forEach((input) => {
       input.addEventListener("input", render);
-    });
-
-    resetBtn.addEventListener("click", () => {
-      Object.entries({
-        hangerPitch: 620,
-        targetOutput: 120,
-        partSize: 300,
-        spray1: 60,
-        dry1: 20,
-        spray2: 60,
-        dry2: 20,
-        aisle: 1.2,
-        feedBuffer: 8,
-        outBuffer: 10,
-        lineGap: 3.2
-      }).forEach(([key, value]) => {
-        inputs[key].value = value;
-      });
-      render();
     });
 
     render();
