@@ -156,6 +156,26 @@
       cursor: pointer;
     }
 
+    .calc-help-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 42px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      white-space: nowrap;
+    }
+
+    .calc-help-btn:hover {
+      background: #f8fafc;
+    }
+
     .topbar {
       display: flex;
       align-items: flex-start;
@@ -420,6 +440,106 @@
       margin-bottom: 5px;
     }
 
+    .modal[hidden] {
+      display: none;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(11, 18, 28, 0.56);
+    }
+
+    .modal-panel {
+      position: relative;
+      width: min(860px, 100%);
+      max-height: min(86vh, 780px);
+      overflow: auto;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 24px 64px rgba(14, 24, 36, 0.28);
+    }
+
+    .modal-head {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .modal-head h3 {
+      margin: 0;
+      font-size: 19px;
+      letter-spacing: 0;
+    }
+
+    .modal-close {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .modal-body {
+      padding: 18px;
+    }
+
+    .formula-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .formula-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfd;
+      min-height: 150px;
+    }
+
+    .formula-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+
+    .formula-card code {
+      display: block;
+      white-space: pre-wrap;
+      line-height: 1.55;
+      color: #354256;
+      background: #ffffff;
+      border: 1px solid #e2e7ee;
+      border-radius: 7px;
+      padding: 10px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 12px;
+    }
+
     @media (max-width: 1100px) {
       .app { grid-template-columns: 1fr; }
       aside { max-height: none; }
@@ -434,6 +554,7 @@
       .canvas-head { flex-direction: column; align-items: flex-start; }
       .metrics { grid-template-columns: 1fr; }
       .viewport { min-height: 620px; }
+      .formula-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -497,7 +618,7 @@
           <h2>產線 Layout 靜態規劃圖</h2>
           <p>站別、流向、入料/出料區、烘乾爐段與占地尺寸會依左側參數即時重算，適合用來做初步方案討論與客戶溝通。</p>
         </div>
-        <div class="status-pill"><span class="dot"></span><span>靜態示意</span></div>
+        <button id="calcHelpBtn" class="calc-help-btn" type="button">計算說明</button>
       </div>
 
       <section class="metrics" aria-label="production metrics">
@@ -529,6 +650,17 @@
         <div class="note"><strong>出料區規劃</strong><span id="outNote">--</span></div>
         <div class="note"><strong>工程提醒</strong><span id="engineeringNote">--</span></div>
       </section>
+
+      <div id="calcModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="calcModalTitle" hidden>
+        <div class="modal-backdrop" data-close-modal></div>
+        <div class="modal-panel">
+          <div class="modal-head">
+            <h3 id="calcModalTitle">計算式與代入數字</h3>
+            <button class="modal-close" type="button" aria-label="關閉計算說明" data-close-modal>×</button>
+          </div>
+          <div id="formulaBody" class="modal-body"></div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -556,6 +688,9 @@
     };
 
     const svg = document.querySelector("#layoutSvg");
+    const calcHelpBtn = document.querySelector("#calcHelpBtn");
+    const calcModal = document.querySelector("#calcModal");
+    const formulaBody = document.querySelector("#formulaBody");
     const layoutDefaults = {
       aisle: 1.2,
       feedBuffer: 8,
@@ -604,7 +739,7 @@
       return {
         pitchM, targetOutput, taktSec, speedMpm, spray1Len, dry1Len, spray2Len,
         dry2Len, feedLen, outLen, processLength, bayWidth, footprintLength,
-        footprintArea, wip, bottleneck, spray1Cap, spray2Cap
+        footprintArea, wip, bottleneck, spray1Cap, spray2Cap, conveyorCap
       };
     }
 
@@ -725,8 +860,89 @@
       output.engineeringNote.textContent = `初估占地約 ${fmt(config.footprintArea)} m²，最小輸送帶總長約 ${fmt(config.processLength)} m，烘乾爐段合計 ${fmt(config.dry1Len + config.dry2Len)} m；${capacityFlag} 實際需再加入爐體保溫厚度、排風設備、消防間距與轉彎半徑。`;
     }
 
+    function formulaCard(title, lines) {
+      return `
+        <div class="formula-card">
+          <strong>${title}</strong>
+          <code>${lines.join("\n")}</code>
+        </div>
+      `;
+    }
+
+    function updateFormulaBody() {
+      const config = calc();
+      const turnAllowance = 5.2;
+      formulaBody.innerHTML = `
+        <div class="formula-grid">
+          ${formulaCard("1. 輸送速度", [
+            "輸送速度 = 吊掛間距 × 目標產量 ÷ 60",
+            `= ${fmt(config.pitchM, 2)} m/只 × ${fmt(config.targetOutput, 0)} 只/hr ÷ 60`,
+            `= ${fmt(config.speedMpm, 2)} m/min`
+          ])}
+          ${formulaCard("2. 烘乾區長度", [
+            "烘乾區長度 = 輸送速度 × 烘乾時間",
+            `第一次烘乾 = ${fmt(config.speedMpm, 2)} × ${fmt(num("dry1"), 0)} = ${fmt(config.dry1Len)} m`,
+            `第二次烘乾 = ${fmt(config.speedMpm, 2)} × ${fmt(num("dry2"), 0)} = ${fmt(config.dry2Len)} m`
+          ])}
+          ${formulaCard("3. 入料與出料區", [
+            "入料區 = 入料緩衝數 × 吊掛間距 + 1.5",
+            `= ${fmt(layoutDefaults.feedBuffer, 0)} × ${fmt(config.pitchM, 2)} + 1.5 = ${fmt(config.feedLen)} m`,
+            "出料區 = 出料緩衝數 × 吊掛間距 + 1.5",
+            `= ${fmt(layoutDefaults.outBuffer, 0)} × ${fmt(config.pitchM, 2)} + 1.5 = ${fmt(config.outLen)} m`
+          ])}
+          ${formulaCard("4. 噴塗區長度", [
+            "噴塗區長度 = max(2.4, 輸送速度 × 噴塗秒數 ÷ 60 + 1.2)",
+            `第一道 = max(2.4, ${fmt(config.speedMpm, 2)} × ${fmt(num("spray1"), 0)} ÷ 60 + 1.2) = ${fmt(config.spray1Len)} m`,
+            `第二道 = max(2.4, ${fmt(config.speedMpm, 2)} × ${fmt(num("spray2"), 0)} ÷ 60 + 1.2) = ${fmt(config.spray2Len)} m`
+          ])}
+          ${formulaCard("5. 最小輸送帶總長", [
+            "總長 = 入料 + 噴塗1 + 烘乾1 + 噴塗2 + 烘乾2 + 出料 + 轉彎預留",
+            `= ${fmt(config.feedLen)} + ${fmt(config.spray1Len)} + ${fmt(config.dry1Len)} + ${fmt(config.spray2Len)} + ${fmt(config.dry2Len)} + ${fmt(config.outLen)} + ${fmt(turnAllowance)}`,
+            `= ${fmt(config.processLength, 1)} m`
+          ])}
+          ${formulaCard("6. 建議占地長寬", [
+            "建議長度 = 最小輸送帶總長 ÷ 2 + 2.5",
+            `= ${fmt(config.processLength, 1)} ÷ 2 + 2.5 = ${fmt(config.footprintLength)} m`,
+            "建議寬度 = 往返線距 + 兩側走道",
+            `= ${fmt(layoutDefaults.lineGap)} + ${fmt(layoutDefaults.aisle)} × 2 = ${fmt(config.bayWidth)} m`
+          ])}
+          ${formulaCard("7. 線上在製品", [
+            "線上在製品 = 最小輸送帶總長 ÷ 吊掛間距，無條件進位",
+            `= ${fmt(config.processLength, 1)} ÷ ${fmt(config.pitchM, 2)}`,
+            `= ${config.wip.toLocaleString("zh-TW")} 只`
+          ])}
+          ${formulaCard("8. 瓶頸能力", [
+            "噴塗能力 = 3600 ÷ 噴塗秒數",
+            `第一道 = 3600 ÷ ${fmt(num("spray1"), 0)} = ${fmt(config.spray1Cap, 0)} 只/hr`,
+            `第二道 = 3600 ÷ ${fmt(num("spray2"), 0)} = ${fmt(config.spray2Cap, 0)} 只/hr`,
+            `瓶頸能力 = min(${fmt(config.spray1Cap, 0)}, ${fmt(config.spray2Cap, 0)}, ${fmt(config.conveyorCap, 0)}) = ${fmt(config.bottleneck, 0)} 只/hr`
+          ])}
+        </div>
+      `;
+    }
+
+    function openCalcModal() {
+      updateFormulaBody();
+      calcModal.hidden = false;
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeCalcModal() {
+      calcModal.hidden = true;
+      document.body.style.overflow = "";
+      calcHelpBtn.focus();
+    }
+
     Object.values(inputs).forEach((input) => {
       input.addEventListener("input", render);
+    });
+
+    calcHelpBtn.addEventListener("click", openCalcModal);
+    calcModal.addEventListener("click", (event) => {
+      if (event.target.matches("[data-close-modal]")) closeCalcModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !calcModal.hidden) closeCalcModal();
     });
 
     render();
